@@ -87,19 +87,6 @@
 		off-on-delay-us = <20000>;
 		enable-active-high;
 	};
-
-	/*
-	 * GPIO5_IO01, the carrier's USB host power pin, is nSERVO_OE on SKY II (see &gpio5), so this
-	 * regulator only gets a GPIO with no pad behind it.
-	 */
-	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
-		compatible = "regulator-fixed";
-		regulator-name = "usb_otg2_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio5 0 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
 };
 
 &i2c2 {
@@ -395,7 +382,6 @@
 
 &usbotg2 {
 	dr_mode = "host";
-	vbus-supply = <&reg_usb_otg2_vbus>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	disable-over-current;

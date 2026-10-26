@@ -430,7 +430,10 @@
 	};
 };
 
-/* SKY II: nSERVO_OE enables the servo output buffers; hold it low so the PWM outputs drive them. */
+/*
+ * SKY II: pwm-enable (nSERVO_OE on the schematic) enables the servo output buffers; hold it low
+ * so the PWM outputs drive them.
+ */
 &gpio5 {
 	pwm_enable_hog {
 		gpio-hog;
@@ -452,7 +455,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sky2>;
 
-	/* SKY II: LED red and blue, nSERVO_OE. LED green, GPIO1_IO14, is in pinctrl_ecspi1. */
+	/* SKY II: LED red and blue, pwm-enable. LED green, GPIO1_IO14, is in pinctrl_ecspi1. */
 	pinctrl_sky2: sky2grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12		0x16

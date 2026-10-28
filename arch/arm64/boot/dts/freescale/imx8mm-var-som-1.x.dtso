@@ -8,14 +8,18 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
 #include "imx8mm-pinfunc.h"
 
 &bluetooth_iw61x {
 	status = "disabled";
 };
 
+/* Broadcom WIFI: power it from the kernel instead of a userspace script */
 &iw612_pwrseq {
-	status = "disabled";
+	reset-gpios = <&gpio2 7  GPIO_ACTIVE_LOW>,	/* WIFI_3V3_PWR_EN */
+		      <&gpio2 20 GPIO_ACTIVE_LOW>,	/* WIFI_1V8_PWR_EN */
+		      <&gpio2 10 GPIO_ACTIVE_LOW>;	/* WIFI_REG_ON     */
 };
 
 /* WIFI */
@@ -25,7 +29,6 @@
 	pinctrl-0 = <&pinctrl_usdhc1>, <&pinctrl_wifi>, <&pinctrl_wifi_v1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>, <&pinctrl_wifi>, <&pinctrl_wifi_v1>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_wifi>, <&pinctrl_wifi_v1>;
-	mmc-pwrseq = <>;
 
 	brcmf: wifi@1 {
 		reg = <1>;

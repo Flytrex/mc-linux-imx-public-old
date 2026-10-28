@@ -13,6 +13,7 @@
 		stdout-path = &uart4;
 	};
 
+	/*
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 1000000 0>;
@@ -30,6 +31,7 @@
 		default-brightness-level = <80>;
 		status = "okay";
 	};
+	*/
 
 	gpio-keys {
 		compatible = "gpio-keys";
@@ -83,18 +85,6 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 		off-on-delay-us = <20000>;
-		enable-active-high;
-	};
-
-	reg_usb_otg2_vbus: regulator-usb-otg2-vbus {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&pinctrl_usbotg2>;
-		pinctrl-1 = <&pinctrl_usbotg2_sleep>;
-		regulator-name = "usb_otg2_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 };
@@ -195,6 +185,20 @@
 			line-name = "enet_sel";
 		};
 	};
+
+	/*
+	 * SKY II: TCA9554A (U41). Its INT output is not used: the SoC pad it reaches, ENET_MDC, is
+	 * the Ethernet PHY's MDIO clock, and its pull-up is not fitted.
+	 */
+	tca9554: gpio@38 {
+		compatible = "nxp,pca9554";
+		reg = <0x38>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		/* Only the fan (GPO1) and the hook's limit switch (HALL_IN_1) are used. */
+		gpio-line-names = "fan", "", "", "",
+				  "hook-sensor", "", "", "";
+	};
 };
 
 &i2c3 {
@@ -211,7 +215,8 @@
 		touchscreen-inverted-x;
 		touchscreen-inverted-y;
 		wakeup-source;
-		status = "okay";
+		/* SPDIF_RX (GPIO5_IO4) is used as PWM2 on Flytrex board */
+		status = "disabled";
 	};
 
 	/* DS1337 RTC module */
@@ -271,7 +276,7 @@
 	data-mapping = "jeida-24";
 	width-mm = <154>;
 	height-mm = <87>;
-	backlight = <&backlight>;
+	/* backlight = <&backlight>; - pwm1 is used by Flytrex board */
 
 	panel-timing {
 		clock-frequency = <33000000>;
@@ -310,13 +315,31 @@
 	assigned-clock-rates = <10000000>, <250000000>;
 	assigned-clock-parents = <&clk IMX8MM_SYS_PLL2_50M>,
 				 <&clk IMX8MM_SYS_PLL2_250M>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_backlight>;
 	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
+};
+
+&pwm4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm4>;
 };
 
 /* Header */
@@ -360,7 +383,6 @@
 
 &usbotg2 {
 	dr_mode = "host";
-	vbus-supply = <&reg_usb_otg2_vbus>;
 	samsung,picophy-pre-emp-curr-control = <3>;
 	samsung,picophy-dc-vol-level-adjust = <7>;
 	disable-over-current;
@@ -373,18 +395,52 @@
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-1 = <&pinctrl_usdhc2_100mhz>, <&pinctrl_usdhc2_gpio>;
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_gpio>;
-	cd-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
 	status = "okay";
 };
 
+/*
+ * SKY II has no Ethernet connector: the SOM's PHY is not wired anywhere. With the MAC off, its
+ * PHY regulator has no consumer left and the kernel switches it off after boot.
+ */
+&fec1 {
+	status = "disabled";
+};
+
+/* SKY II: the RGB LED */
+&gpio1 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+			  "", "", "", "", "led-red", "", "led-green", "",
+			  "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "";
+};
+
 &gpio4 {
+	gpio-line-names = "", "", "", "", "", "", "", "",
+			  "", "", "led-blue", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "";
+
 	cam_buf_hog {
 		gpio-hog;
 		gpios = <5 GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "cam_buf_en";
+	};
+};
+
+/*
+ * SKY II: pwm-enable (nSERVO_OE on the schematic) enables the servo output buffers; hold it low
+ * so the PWM outputs drive them.
+ */
+&gpio5 {
+	pwm_enable_hog {
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "pwm-enable";
 	};
 };
 
@@ -397,6 +453,18 @@
 };
 
 &iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sky2>;
+
+	/* SKY II: LED red and blue, pwm-enable. LED green, GPIO1_IO14, is in pinctrl_ecspi1. */
+	pinctrl_sky2: sky2grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12		0x16
+			MX8MM_IOMUXC_SAI1_TXFS_GPIO4_IO10		0x16
+			MX8MM_IOMUXC_SAI3_TXD_GPIO5_IO1			0x16
+		>;
+	};
+
 	pinctrl_i2c2: i2c2grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_I2C2_SCL_I2C2_SCL			0x400001c3
@@ -512,18 +580,6 @@
 		>;
 	};
 
-	pinctrl_usbotg2: usbotg2grp {
-		fsl,pins = <
-			MX8MM_IOMUXC_SAI3_TXD_GPIO5_IO1			0x16
-		>;
-	};
-
-	pinctrl_usbotg2_sleep: usbotg2grpsleep {
-		fsl,pins = <
-			MX8MM_IOMUXC_SAI3_TXD_GPIO5_IO1			0x120
-		>;
-	};
-
 	pinctrl_csi1: csi1grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19 /* CAM_RST */
@@ -541,6 +597,23 @@
 	pinctrl_pcie0: pcie0grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI2_RXFS_GPIO4_IO21		0x41
+		>;
+	};
+	pinctrl_pwm2: pwm2grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SPDIF_RX_PWM2_OUT 0x06
+		>;
+	};
+
+	pinctrl_pwm3: pwm3grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SPDIF_TX_PWM3_OUT 0x06
+		>;
+	};
+
+	pinctrl_pwm4: pwm4grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SAI3_MCLK_PWM4_OUT 0x06
 		>;
 	};
 };

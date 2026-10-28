@@ -195,8 +195,9 @@
 		reg = <0x38>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		gpio-line-names = "fan", "gpo2", "gpo3", "ext-buzzer",
-				  "hook-sensor", "hall-in-2", "internal-buzzer", "avl-ndisable";
+		/* Only the fan (GPO1) and the hook's limit switch (HALL_IN_1) are used. */
+		gpio-line-names = "fan", "", "", "",
+				  "hook-sensor", "", "", "";
 	};
 };
 
